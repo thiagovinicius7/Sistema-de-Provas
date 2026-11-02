@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
 import { CalendarDays, ChevronDown, Clock, Copy, FolderOpen, Pencil, Plus, Search, Wallet } from 'lucide-react';
-import type { Evento, Questao, StatusEvento } from '../lib/types';
+import type { Evento, Questao, Recebimento, StatusEvento } from '../lib/types';
+import OutrosRecebimentos from './OutrosRecebimentos';
 import { LISTA_STATUS, STATUS_FINAL } from '../lib/types';
 import { mudarStatus } from '../lib/data';
 import { COR_PRAZO, COR_STATUS, calcularProgresso, dataBR, moeda, prazoEvento, recebimento, semAcento, totalEvento } from '../lib/util';
@@ -158,12 +159,14 @@ function CartaoEvento({ e, questoes, abrir, editar }: { e: Evento; questoes: Que
 export default function Dashboard({
   eventos,
   questoes,
+  recebimentos,
   abrirEvento,
   editarEvento,
   novoEvento,
 }: {
   eventos: Evento[];
   questoes: Questao[];
+  recebimentos: Recebimento[];
   abrirEvento: (id: string) => void;
   editarEvento: (e: Evento) => void;
   novoEvento: () => void;
@@ -193,10 +196,11 @@ export default function Dashboard({
   const aguardandoPgto = eventos
     .filter((e) => e.status === 'Esperando pagamento' && e.valorRecebido === null)
     .reduce((s, e) => s + totalEvento(e), 0);
-  const recebidoAno = eventos.reduce((s, e) => {
-    const r = recebimento(e);
-    return r && r.data.startsWith(ano) ? s + r.valor : s;
-  }, 0);
+  const recebidoAno =
+    eventos.reduce((s, e) => {
+      const r = recebimento(e);
+      return r && r.data.startsWith(ano) ? s + r.valor : s;
+    }, 0) + recebimentos.filter((r) => r.data.startsWith(ano)).reduce((s, r) => s + r.valor, 0);
   const proxima = eventos
     .map((e) => ({ e, pz: prazoEvento(e) }))
     .filter((x) => x.pz)
@@ -233,7 +237,7 @@ export default function Dashboard({
         {[
           { r: 'A receber', v: moeda(aReceber), d: 'eventos ainda não pagos' },
           { r: 'Esperando pagamento', v: moeda(aguardandoPgto), d: 'já entregues' },
-          { r: `Recebido em ${ano}`, v: moeda(recebidoAno), d: 'pela data do pagamento' },
+          { r: `Recebido em ${ano}`, v: moeda(recebidoAno), d: 'provas e outros recebimentos' },
         ].map((k) => (
           <div key={k.r} className="rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/70">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{k.r}</div>
@@ -273,6 +277,8 @@ export default function Dashboard({
         Finalizados <span className="text-slate-400">({finalizados.length})</span>
       </button>
       {(verFinalizados || (busca && finalizados.length > 0)) && lista(finalizados)}
+
+      <OutrosRecebimentos lista={recebimentos} />
 
     </div>
   );

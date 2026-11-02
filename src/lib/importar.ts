@@ -1,6 +1,8 @@
 import { serverTimestamp } from 'firebase/firestore';
-import { gravarEmLote, lerEvento, lerQuestao } from './data';
-import type { Evento, Questao } from './types';
+import { COL_RECEBIMENTOS, gravarEmLote, lerEvento, lerQuestao, lerRecebimento } from './data';
+import { doc, writeBatch } from 'firebase/firestore';
+import { db } from './firebase';
+import type { Evento, Questao, Recebimento } from './types';
 import { LISTA_STATUS } from './types';
 import { normalizarData, num, txt } from './util';
 
@@ -145,8 +147,9 @@ function semCamposDeTempo<T extends Record<string, any>>(o: T) {
   return resto;
 }
 
-export function gerarBackup(eventos: Evento[], questoes: Questao[]) {
+export function gerarBackup(eventos: Evento[], questoes: Questao[], recebimentos: Recebimento[] = []) {
   return {
+    recebimentos,
     sistema: 'BancoP',
     versao: 1,
     geradoEm: new Date().toISOString(),
@@ -185,5 +188,14 @@ export async function restaurarBackup(conteudo: string, aoProgredir?: (msg: stri
       return { id, dados: { ...semCamposDeTempo(d), atualizadoEm: serverTimestamp() } };
     });
   await gravarEmLote(eventos, questoes, (f, t) => aoProgredir?.(`Gravando ${f} de ${t}…`));
-  return { eventos: eventos.length, questoes: questoes.length };
+  const recebimentos = Array.isArray(b.recebimentos) ? b.recebimentos.filter((r: any) => r?.id) : [];
+  if (recebimentos.length) {
+    const lote = writeBatch(db);
+    recebimentos.forEach((r: any) => {
+      const { id, ...d } = lerRecebimento(String(r.id), r);
+      lote.set(doc(db, COL_RECEBIMENTOS, id), d);
+    });
+    await lote.commit();
+  }
+  return { eventos: eventos.length, questoes: questoes.length, recebimentos: recebimentos.length };
 }

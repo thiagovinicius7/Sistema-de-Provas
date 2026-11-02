@@ -3,8 +3,8 @@ import { onAuthStateChanged, type User } from 'firebase/auth';
 import { Loader2, LockKeyhole, Settings2, ShieldAlert } from 'lucide-react';
 import { auth, entrarComGoogle, firebaseConfigurado, sair } from './lib/firebase';
 import { emailAutorizado } from './lib/acesso';
-import { ouvirEventos, ouvirQuestoes } from './lib/data';
-import type { Evento, Questao } from './lib/types';
+import { ouvirEventos, ouvirQuestoes, ouvirRecebimentos } from './lib/data';
+import type { Evento, Questao, Recebimento } from './lib/types';
 import Dashboard from './components/Dashboard';
 import EventoForm from './components/EventoForm';
 import EventoTela from './components/EventoTela';
@@ -107,6 +107,7 @@ function Sistema({ usuario }: { usuario: User }) {
   const { avisar, confirmar } = useAvisos();
   const [eventos, setEventos] = useState<Evento[] | null>(null);
   const [questoes, setQuestoes] = useState<Questao[] | null>(null);
+  const [recebimentos, setRecebimentos] = useState<Recebimento[]>([]);
   const [negado, setNegado] = useState(false);
   const [rota, setRota] = useState<Rota>(lerRota);
   const [form, setForm] = useState<{ aberto: boolean; evento: Evento | null }>({ aberto: false, evento: null });
@@ -122,7 +123,9 @@ function Sistema({ usuario }: { usuario: User }) {
     };
     const a = ouvirEventos(setEventos, falha);
     const b = ouvirQuestoes(setQuestoes, falha);
-    return () => { a(); b(); };
+    // Recebimentos avulsos não bloqueiam o sistema se a regra ainda não foi publicada.
+    const c = ouvirRecebimentos(setRecebimentos, (e) => console.warn('recebimentos:', (e as any).code || e));
+    return () => { a(); b(); c(); };
   }, [avisar]);
 
   // Sai sozinho depois de um tempo sem uso.
@@ -264,12 +267,13 @@ function Sistema({ usuario }: { usuario: User }) {
       <Dashboard
         eventos={eventos}
         questoes={questoes}
+        recebimentos={recebimentos}
         abrirEvento={(id) => navegar({ evento: id, questao: null })}
         editarEvento={(e) => setForm({ aberto: true, evento: e })}
         novoEvento={() => setForm({ aberto: true, evento: null })}
       />
       {formulario}
-      <Ferramentas aberto={ferramentas} aoFechar={() => setFerramentas(false)} eventos={eventos} questoes={questoes} />
+      <Ferramentas aberto={ferramentas} aoFechar={() => setFerramentas(false)} eventos={eventos} questoes={questoes} recebimentos={recebimentos} />
     </>
   );
 }

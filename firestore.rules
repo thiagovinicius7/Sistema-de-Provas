@@ -57,6 +57,15 @@ service cloud.firestore {
       allow create, update: if autorizado() && questaoValida(request.resource.data);
     }
 
+    // Outros recebimentos (horas de trabalho presencial etc.).
+    match /recebimentos/{id} {
+      allow read, delete: if autorizado();
+      allow create, update: if autorizado()
+        && request.resource.data.data is string
+        && request.resource.data.descricao is string
+        && request.resource.data.valor is number;
+    }
+
     // Qualquer outra coleção fica fechada.
     match /{document=**} {
       allow read, write: if false;

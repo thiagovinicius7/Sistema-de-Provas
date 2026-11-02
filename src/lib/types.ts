@@ -75,3 +75,14 @@ export interface Questao {
 
 export type EventoDados = Omit<Evento, 'id' | 'criadoEm' | 'atualizadoEm'>;
 export type QuestaoDados = Omit<Questao, 'id' | 'criadoEm' | 'atualizadoEm'>;
+
+/** Entrada que não é pagamento de prova (ex.: horas de trabalho presencial). */
+export interface Recebimento {
+  id: string;
+  /** yyyy-mm-dd */
+  data: string;
+  descricao: string;
+  horas: number | null;
+  /** Valor que caiu na conta. */
+  valor: number;
+}

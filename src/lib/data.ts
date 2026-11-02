@@ -12,12 +12,13 @@ import {
   where,
 } from 'firebase/firestore';
 import { db } from './firebase';
-import type { Evento, EventoDados, Item, Questao, QuestaoDados, StatusEvento } from './types';
+import type { Evento, EventoDados, Item, Questao, QuestaoDados, Recebimento, StatusEvento } from './types';
 import { LISTA_STATUS } from './types';
 import { num, txt, normalizarData } from './util';
 
 export const COL_EVENTOS = 'eventos';
 export const COL_QUESTOES = 'questoes';
+export const COL_RECEBIMENTOS = 'recebimentos';
 
 // ---------- Leitura defensiva (nunca quebra a tela com dado incompleto) ----------
 
@@ -211,4 +212,40 @@ export async function gravarEmLote(
     await b.commit();
     aoProgredir?.(Math.min(i + 300, tudo.length), tudo.length);
   }
+}
+
+// ---------- Outros recebimentos ----------
+
+export function lerRecebimento(id: string, d: any): Recebimento {
+  return {
+    id,
+    data: normalizarData(d?.data),
+    descricao: txt(d?.descricao),
+    horas: d?.horas === null || d?.horas === undefined || d?.horas === '' ? null : num(d.horas),
+    valor: num(d?.valor),
+  };
+}
+
+export function ouvirRecebimentos(cb: (r: Recebimento[]) => void, erro: (e: Error) => void) {
+  return onSnapshot(
+    collection(db, COL_RECEBIMENTOS),
+    (snap) => cb(snap.docs.map((d) => lerRecebimento(d.id, d.data()))),
+    erro,
+  );
+}
+
+export async function salvarRecebimento(id: string | null, r: Omit<Recebimento, 'id'>) {
+  const ref = id ? doc(db, COL_RECEBIMENTOS, id) : doc(collection(db, COL_RECEBIMENTOS));
+  await setDoc(ref, {
+    data: r.data,
+    descricao: r.descricao.trim(),
+    horas: r.horas,
+    valor: num(r.valor),
+    atualizadoEm: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export function excluirRecebimento(id: string) {
+  return deleteDoc(doc(db, COL_RECEBIMENTOS, id));
 }

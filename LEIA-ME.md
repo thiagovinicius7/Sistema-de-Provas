@@ -59,6 +59,8 @@ O plano gratuito do Firebase não faz backup automático. Use
   dataPagamento.
 - `questoes/{id}`: eventoId, numero, enunciado, tipo, dif e gab (só ME),
   itens [{ letra (ME), dif (CE), texto, gab, edital, justificativa, fonte }].
+- `recebimentos/{id}`: data, descricao, horas (opcional), valor — entradas que não são de prova,
+  como horas de trabalho presencial. Entram no "Recebido no ano".
 
 ## Regras automáticas
 

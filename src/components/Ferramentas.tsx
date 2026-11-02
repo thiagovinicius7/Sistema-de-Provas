@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { DatabaseBackup, Download, FileUp, LogOut, Sheet } from 'lucide-react';
-import type { Evento, Questao } from '../lib/types';
+import type { Evento, Questao, Recebimento } from '../lib/types';
 import { ESCOPO_PLANILHAS, auth, obterTokenGoogle, sair } from '../lib/firebase';
 import { baixarArquivo, gerarBackup, importarDaPlanilha, restaurarBackup, type ResultadoImportacao } from '../lib/importar';
 import { Botao, Modal, msgErro, useAvisos } from './ui';
@@ -10,11 +10,13 @@ export default function Ferramentas({
   aoFechar,
   eventos,
   questoes,
+  recebimentos,
 }: {
   aberto: boolean;
   aoFechar: () => void;
   eventos: Evento[];
   questoes: Questao[];
+  recebimentos: Recebimento[];
 }) {
   const { avisar, confirmar } = useAvisos();
   const [ocupado, setOcupado] = useState('');
@@ -43,7 +45,7 @@ export default function Ferramentas({
   }
 
   function backup() {
-    const dados = gerarBackup(eventos, questoes);
+    const dados = gerarBackup(eventos, questoes, recebimentos);
     const dia = new Date().toISOString().slice(0, 10);
     baixarArquivo(`backup-bancop-${dia}.json`, new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' }));
     avisar('Backup baixado.');
@@ -59,7 +61,7 @@ export default function Ferramentas({
     setOcupado('Lendo o arquivo…');
     try {
       const r = await restaurarBackup(await f.text(), setOcupado);
-      avisar(`Restaurados ${r.eventos} eventos e ${r.questoes} questões.`);
+      avisar(`Restaurados ${r.eventos} eventos, ${r.questoes} questões e ${r.recebimentos} recebimentos.`);
     } catch (e) {
       avisar(msgErro(e), 'erro');
     } finally {
