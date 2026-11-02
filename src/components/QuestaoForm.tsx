@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { CopyPlus, Plus, Save, Trash2, X } from 'lucide-react';
+import { BookMarked, Check, CopyPlus, Library, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import type { Dificuldade, Evento, Item, Questao } from '../lib/types';
 import { salvarQuestao, excluirQuestao } from '../lib/data';
-import { Botao, Campo, Segmentado, TextoAuto, cx, estiloInput, msgErro, useAvisos } from './ui';
+import { type Topico, topicosCitados } from '../lib/edital';
+import { aplicarPrefixo, catalogoDeFontes, separarFonte } from '../lib/fonte';
+import { semAcento } from '../lib/util';
+import { Botao, Campo, Modal, Segmentado, TextoAuto, cx, estiloInput, msgErro, useAvisos } from './ui';
 
 const LETRAS = ['A', 'B', 'C', 'D', 'E'];
 
@@ -30,8 +33,15 @@ interface Estado {
 
 function itemVazio(tipo: 'CE' | 'ME', letra?: string): Item {
   return tipo === 'ME'
-    ? { letra, texto: '', gab: '', edital: '', justificativa: '' }
-    : { dif: '', texto: '', gab: '', edital: '', justificativa: '' };
+    ? { letra, texto: '', gab: '', edital: '', justificativa: '', fonte: '' }
+    : { dif: '', texto: '', gab: '', edital: '', justificativa: '', fonte: '' };
+}
+
+/** Item como aparece no formulário: a fonte das justificativas antigas vai para o campo próprio. */
+function itemParaForm(i: Item): Item {
+  if (i.fonte) return { ...i };
+  const { justificativa, fonte } = separarFonte(i.justificativa);
+  return { ...i, justificativa, fonte };
 }
 
 function estadoInicial(evento: Evento, q: Questao | null, proximo: number): Estado {
@@ -42,7 +52,7 @@ function estadoInicial(evento: Evento, q: Questao | null, proximo: number): Esta
       dif: q.dif,
       gab: q.gab,
       itens: q.itens.length
-        ? q.itens.map((i) => ({ ...i }))
+        ? q.itens.map(itemParaForm)
         : evento.tipo === 'ME' ? LETRAS.map((l) => itemVazio('ME', l)) : [itemVazio('CE')],
     };
   }
@@ -60,6 +70,8 @@ export default function QuestaoForm({
   questao,
   proximoNumero,
   numerosUsados,
+  topicos,
+  todasQuestoes,
   aoSalvar,
   aoExcluir,
   aoMudarSujo,
@@ -68,6 +80,8 @@ export default function QuestaoForm({
   questao: Questao | null;
   proximoNumero: number;
   numerosUsados: Map<number, string>;
+  topicos: Topico[];
+  todasQuestoes: Questao[];
   aoSalvar: (id: string, nova: boolean) => void;
   aoExcluir: () => void;
   aoMudarSujo: (sujo: boolean) => void;
@@ -107,9 +121,18 @@ export default function QuestaoForm({
   const sujo = JSON.stringify(s) !== base.current;
   useEffect(() => aoMudarSujo(sujo), [sujo, aoMudarSujo]);
 
+  const [seletorTopico, setSeletorTopico] = useState<number | null>(null);
+  const fontes = useMemo(() => catalogoDeFontes(todasQuestoes), [todasQuestoes]);
+
   const mudaItem = (i: number, campo: keyof Item, valor: string) =>
     setS((x) => {
-      const itens = x.itens.map((it, k) => (k === i ? { ...it, [campo]: valor } : it));
+      const itens = x.itens.map((it, k) => {
+        if (k !== i) return it;
+        const novo = { ...it, [campo]: valor };
+        // Gabarito do item define o começo da justificativa: "Item certo." / "Item errado."
+        if (campo === 'gab') novo.justificativa = aplicarPrefixo(it.justificativa, valor);
+        return novo;
+      });
       let gab = x.gab;
       // ME: ao marcar a única alternativa certa, preenche o gabarito se estiver vazio.
       if (ME && campo === 'gab' && valor === 'certa' && !gab) gab = itens[i].letra || '';
@@ -267,27 +290,49 @@ export default function QuestaoForm({
                   value={it.edital}
                   minLinhas={1}
                   placeholder="Conteúdo do edital"
-                  className="pr-9 text-xs"
+                  className="pr-16 text-xs"
                   onChange={(e) => mudaItem(i, 'edital', e.target.value)}
                 />
-                {it.edital && s.itens.length > 1 && (
-                  <button
-                    title="Usar este conteúdo do edital em todos os itens"
-                    className="absolute right-1.5 top-1.5 rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-                    onClick={() => copiarEdital(i)}
-                  >
-                    <CopyPlus className="size-4" />
-                  </button>
-                )}
+                <div className="absolute right-1.5 top-1.5 flex">
+                  {topicos.length > 0 && (
+                    <button
+                      title="Escolher tópico do edital"
+                      className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      onClick={() => setSeletorTopico(i)}
+                    >
+                      <BookMarked className="size-4" />
+                    </button>
+                  )}
+                  {it.edital && s.itens.length > 1 && (
+                    <button
+                      title="Usar este conteúdo do edital em todos os itens"
+                      className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+                      onClick={() => copiarEdital(i)}
+                    >
+                      <CopyPlus className="size-4" />
+                    </button>
+                  )}
+                </div>
               </div>
               <TextoAuto
                 value={it.justificativa}
                 minLinhas={1}
-                placeholder="Justificativa"
+                placeholder={it.gab ? 'Justificativa' : 'Justificativa (marque o gabarito para começar com “Item certo/errado”)'}
                 className="text-xs"
                 onChange={(e) => mudaItem(i, 'justificativa', e.target.value)}
               />
             </div>
+            <CampoFonte
+              valor={it.fonte || ''}
+              fontes={fontes}
+              anterior={i > 0 ? s.itens[i - 1].fonte || '' : ''}
+              aoMudar={(v) => mudaItem(i, 'fonte', v)}
+              aoAplicarEmTodos={
+                s.itens.length > 1 && it.fonte
+                  ? () => setS((x) => ({ ...x, itens: x.itens.map((o) => ({ ...o, fonte: it.fonte })) }))
+                  : undefined
+              }
+            />
           </div>
         ))}
       </div>
@@ -296,6 +341,16 @@ export default function QuestaoForm({
         <Botao className="mt-3 w-full border-dashed" onClick={() => setS((x) => ({ ...x, itens: [...x.itens, itemVazio('CE')] }))}>
           <Plus className="size-4" /> Adicionar item
         </Botao>
+      )}
+
+      {seletorTopico !== null && (
+        <SeletorTopico
+          topicos={topicos}
+          edital={s.itens[seletorTopico]?.edital || ''}
+          aoMudar={(v) => mudaItem(seletorTopico, 'edital', v)}
+          aoFechar={() => setSeletorTopico(null)}
+          titulo={ME ? `Alternativa ${s.itens[seletorTopico]?.letra || ''}` : `Item ${seletorTopico + 1}`}
+        />
       )}
 
       <div className="fixed inset-x-0 bottom-0 z-30 border-t border-slate-200 bg-white/90 px-4 py-3 backdrop-blur lg:sticky lg:bottom-0 lg:mt-6 lg:rounded-xl lg:border lg:shadow-sm">
@@ -307,5 +362,150 @@ export default function QuestaoForm({
         </div>
       </div>
     </div>
+  );
+}
+
+// ---------- Fonte com lista das já usadas ----------
+
+function CampoFonte({
+  valor,
+  fontes,
+  anterior,
+  aoMudar,
+  aoAplicarEmTodos,
+}: {
+  valor: string;
+  fontes: string[];
+  anterior: string;
+  aoMudar: (v: string) => void;
+  aoAplicarEmTodos?: () => void;
+}) {
+  const [aberto, setAberto] = useState(false);
+  // Cada linha é uma referência; a busca e a escolha valem para a linha que está sendo digitada (a última).
+  const linhas = valor.split('\n');
+  const ultima = linhas[linhas.length - 1];
+  const busca = semAcento(ultima.trim());
+  const sugestoes = useMemo(() => {
+    const termos = busca.split(/\s+/).filter((t) => t.length >= 2);
+    const usadas = new Set(linhas.map((l) => l.trim()));
+    const lista = termos.length ? fontes.filter((f) => termos.every((t) => semAcento(f).includes(t))) : fontes;
+    return lista.filter((f) => !usadas.has(f)).slice(0, 8);
+  }, [busca, fontes, valor]); // eslint-disable-line
+  const escolher = (f: string) => aoMudar([...linhas.slice(0, -1), f].join('\n'));
+
+  return (
+    <div className="relative mt-2">
+      <div className="mb-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-slate-500">
+          <Library className="size-3.5" /> Fonte
+        </span>
+        {anterior && anterior !== valor && (
+          <button type="button" onClick={() => aoMudar(anterior)} className="text-[11px] font-medium text-sky-700 hover:underline">
+            Mesma do item anterior
+          </button>
+        )}
+        {aoAplicarEmTodos && (
+          <button type="button" onClick={aoAplicarEmTodos} className="text-[11px] font-medium text-sky-700 hover:underline">
+            Usar em todos os itens
+          </button>
+        )}
+      </div>
+      <div className="relative">
+        <TextoAuto
+          value={valor}
+          minLinhas={1}
+          placeholder="Fonte — digite para buscar nas já usadas ou cadastre uma nova (Enter para mais de uma)"
+          className="text-xs"
+          onFocus={() => setAberto(true)}
+          onBlur={() => setTimeout(() => setAberto(false), 150)}
+          onChange={(e) => { aoMudar(e.target.value); setAberto(true); }}
+        />
+        {aberto && sugestoes.length > 0 && (
+          <ul className="absolute inset-x-0 top-full z-40 mt-1 max-h-64 overflow-y-auto rounded-lg bg-white py-1 shadow-xl ring-1 ring-slate-200 barra-fina">
+            {sugestoes.map((f) => (
+              <li key={f}>
+                <button
+                  type="button"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => { escolher(f); setAberto(false); }}
+                  className="block w-full px-3 py-2 text-left text-xs leading-snug text-slate-700 hover:bg-slate-50"
+                >
+                  {f}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ---------- Escolha de tópico do edital ----------
+
+function SeletorTopico({
+  topicos,
+  edital,
+  aoMudar,
+  aoFechar,
+  titulo,
+}: {
+  topicos: Topico[];
+  edital: string;
+  aoMudar: (v: string) => void;
+  aoFechar: () => void;
+  titulo: string;
+}) {
+  const [busca, setBusca] = useState('');
+  const marcados = new Set(topicosCitados(edital, topicos).map((t) => t.linha));
+  const termos = semAcento(busca).split(/\s+/).filter(Boolean);
+  const lista = termos.length ? topicos.filter((t) => termos.every((x) => semAcento(t.linha).includes(x))) : topicos;
+
+  function alternar(t: Topico) {
+    if (marcados.has(t.linha)) {
+      if (!edital.includes(t.linha)) return; // citado só pelo número: edite o texto à mão
+      aoMudar(
+        edital
+          .replace(t.linha, '')
+          .replace(/^[\s;.]+|[\s;]+$/g, '')
+          .replace(/;\s*;/g, ';')
+          .trim(),
+      );
+    } else {
+      const base = edital.trim().replace(/[;]+$/, '');
+      aoMudar(base ? `${base}; ${t.linha}` : t.linha);
+    }
+  }
+
+  return (
+    <Modal aberto aoFechar={aoFechar} titulo={`Tópico do edital — ${titulo}`} largura="max-w-xl" rodape={<Botao variante="primario" onClick={aoFechar}>Pronto</Botao>}>
+      <div className="relative mb-3">
+        <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
+        <input autoFocus value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="Buscar tópico" className={cx(estiloInput, 'pl-9')} />
+      </div>
+      <ul className="space-y-0.5">
+        {lista.map((t) => {
+          const on = marcados.has(t.linha);
+          return (
+            <li key={t.linha}>
+              <button
+                onClick={() => alternar(t)}
+                className={cx('flex w-full items-start gap-2 rounded-lg py-2 pr-2 text-left text-sm', on ? 'bg-emerald-50 text-emerald-900' : 'hover:bg-slate-50')}
+                style={{ paddingLeft: 8 + t.nivel * 16 }}
+              >
+                <span className={cx('mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border', on ? 'border-emerald-600 bg-emerald-600 text-white' : 'border-slate-300')}>
+                  {on && <Check className="size-3" />}
+                </span>
+                <span className="leading-snug">
+                  {t.codigo && <b className="mr-1">{t.codigo}</b>}
+                  {t.texto}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+        {lista.length === 0 && <li className="py-6 text-center text-sm text-slate-400">Nenhum tópico encontrado.</li>}
+      </ul>
+    </Modal>
   );
 }

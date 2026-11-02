@@ -1,22 +1,29 @@
 import { useMemo, useState } from 'react';
-import { CalendarDays, ChevronDown, Copy, FolderOpen, Pencil, Plus, Search } from 'lucide-react';
+import { CalendarDays, ChevronDown, Clock, Copy, FolderOpen, Pencil, Plus, Search, Wallet } from 'lucide-react';
 import type { Evento, Questao, StatusEvento } from '../lib/types';
 import { LISTA_STATUS, STATUS_FINAL } from '../lib/types';
 import { mudarStatus } from '../lib/data';
-import { COR_STATUS, calcularProgresso, dataBR, moeda, semAcento, totalEvento } from '../lib/util';
+import { COR_PRAZO, COR_STATUS, calcularProgresso, dataBR, moeda, prazoEvento, recebimento, semAcento, totalEvento } from '../lib/util';
+import Pagamento from './Pagamento';
 import { Botao, cx, msgErro, useAvisos } from './ui';
 
 export function SeletorStatus({ evento }: { evento: Evento }) {
   const { avisar } = useAvisos();
+  const [pagamento, setPagamento] = useState(false);
   return (
     <div className="relative inline-flex" onClick={(e) => e.stopPropagation()}>
+      {pagamento && <Pagamento evento={evento} aoFechar={() => setPagamento(false)} />}
       <select
         value={evento.status}
-        onChange={(e) =>
-          mudarStatus(evento.id, e.target.value as StatusEvento)
-            .then(() => avisar(`Status: ${e.target.value}`))
-            .catch((er) => avisar(msgErro(er), 'erro'))
-        }
+        onChange={(e) => {
+          const novo = e.target.value as StatusEvento;
+          mudarStatus(evento.id, novo)
+            .then(() => {
+              avisar(`Status: ${novo}`);
+              if (novo === STATUS_FINAL && evento.valorRecebido === null) setPagamento(true);
+            })
+            .catch((er) => avisar(msgErro(er), 'erro'));
+        }}
         className={cx(
           'cursor-pointer appearance-none rounded-full py-1 pl-3 pr-7 text-xs font-semibold ring-1 focus:outline-none focus:ring-2',
           COR_STATUS[evento.status],
@@ -55,8 +62,44 @@ export function BotaoLink({ link }: { link: string }) {
   );
 }
 
+export function SeloPrazo({ evento }: { evento: Evento }) {
+  const pz = prazoEvento(evento);
+  if (!pz) return null;
+  return (
+    <span className={cx('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold', COR_PRAZO[pz.nivel])}>
+      <Clock className="size-3" /> {pz.texto}
+    </span>
+  );
+}
+
+export function SeloPagamento({ evento, aoClicar }: { evento: Evento; aoClicar?: () => void }) {
+  const r = recebimento(evento);
+  const conteudo = r?.registrado ? (
+    <>Recebido {moeda(r.valor)} em {dataBR(r.data)}</>
+  ) : evento.status === 'Esperando pagamento' || (evento.status === STATUS_FINAL && !r?.registrado) ? (
+    <>Registrar pagamento</>
+  ) : null;
+  if (!conteudo) return null;
+  return (
+    <button
+      onClick={(ev) => { ev.stopPropagation(); aoClicar?.(); }}
+      className={cx(
+        'inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold',
+        r?.registrado
+          ? 'bg-emerald-50 text-emerald-800 hover:bg-emerald-100'
+          : evento.status === 'Esperando pagamento'
+            ? 'bg-yellow-50 text-yellow-800 ring-1 ring-yellow-300 hover:bg-yellow-100'
+            : 'bg-slate-100 text-slate-500 hover:bg-slate-200',
+      )}
+    >
+      <Wallet className="size-3" /> {conteudo}
+    </button>
+  );
+}
+
 function CartaoEvento({ e, questoes, abrir, editar }: { e: Evento; questoes: Questao[]; abrir: () => void; editar: () => void }) {
   const p = calcularProgresso(e, questoes);
+  const [pagamento, setPagamento] = useState(false);
   const finalizado = e.status === STATUS_FINAL;
   return (
     <div
@@ -102,9 +145,12 @@ function CartaoEvento({ e, questoes, abrir, editar }: { e: Evento; questoes: Que
         <span className="w-16 text-right text-xs font-medium tabular-nums text-slate-600">{p.total}/{p.meta}</span>
       </div>
 
-      <div className="mt-3">
+      <div className="mt-3 flex flex-wrap items-center gap-2">
         <SeletorStatus evento={e} />
+        <SeloPrazo evento={e} />
+        <SeloPagamento evento={e} aoClicar={() => setPagamento(true)} />
       </div>
+      {pagamento && <Pagamento evento={e} aoFechar={() => setPagamento(false)} />}
     </div>
   );
 }
@@ -140,12 +186,21 @@ export default function Dashboard({
   const ativos = filtrados.filter((e) => e.status !== STATUS_FINAL);
   const finalizados = filtrados.filter((e) => e.status === STATUS_FINAL).reverse();
 
-  const ano = new Date().getFullYear();
-  const emAberto = eventos.filter((e) => e.status !== STATUS_FINAL).reduce((s, e) => s + totalEvento(e), 0);
-  const aguardandoPgto = eventos.filter((e) => e.status === 'Esperando pagamento').reduce((s, e) => s + totalEvento(e), 0);
-  const recebidoAno = eventos
-    .filter((e) => e.status === STATUS_FINAL && e.data.startsWith(String(ano)))
+  const ano = String(new Date().getFullYear());
+  const aReceber = eventos
+    .filter((e) => recebimento(e) === null)
     .reduce((s, e) => s + totalEvento(e), 0);
+  const aguardandoPgto = eventos
+    .filter((e) => e.status === 'Esperando pagamento' && e.valorRecebido === null)
+    .reduce((s, e) => s + totalEvento(e), 0);
+  const recebidoAno = eventos.reduce((s, e) => {
+    const r = recebimento(e);
+    return r && r.data.startsWith(ano) ? s + r.valor : s;
+  }, 0);
+  const proxima = eventos
+    .map((e) => ({ e, pz: prazoEvento(e) }))
+    .filter((x) => x.pz)
+    .sort((a, b) => a.pz!.dias - b.pz!.dias)[0];
 
   const lista = (es: Evento[]) => (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -158,15 +213,32 @@ export default function Dashboard({
   return (
     <div className="mx-auto max-w-6xl px-4 pb-24 pt-5">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <button
+          disabled={!proxima}
+          onClick={() => proxima && abrirEvento(proxima.e.id)}
+          className="rounded-xl bg-white px-4 py-3 text-left shadow-sm ring-1 ring-slate-200/70 enabled:hover:ring-slate-300"
+        >
+          <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Próxima entrega</div>
+          {proxima ? (
+            <>
+              <div className="mt-0.5 truncate text-lg font-bold text-slate-900">{proxima.e.titulo}</div>
+              <span className={cx('mt-0.5 inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold', COR_PRAZO[proxima.pz!.nivel])}>
+                {proxima.pz!.texto}
+              </span>
+            </>
+          ) : (
+            <div className="mt-0.5 text-lg font-bold text-slate-400">Nenhuma</div>
+          )}
+        </button>
         {[
-          { r: 'Eventos ativos', v: String(eventos.filter((e) => e.status !== STATUS_FINAL).length) },
-          { r: 'Em andamento', v: moeda(emAberto) },
-          { r: 'Esperando pagamento', v: moeda(aguardandoPgto) },
-          { r: `Finalizados em ${ano}`, v: moeda(recebidoAno) },
+          { r: 'A receber', v: moeda(aReceber), d: 'eventos ainda não pagos' },
+          { r: 'Esperando pagamento', v: moeda(aguardandoPgto), d: 'já entregues' },
+          { r: `Recebido em ${ano}`, v: moeda(recebidoAno), d: 'pela data do pagamento' },
         ].map((k) => (
           <div key={k.r} className="rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/70">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{k.r}</div>
             <div className="mt-0.5 text-lg font-bold tabular-nums text-slate-900">{k.v}</div>
+            <div className="text-[11px] text-slate-400">{k.d}</div>
           </div>
         ))}
       </div>

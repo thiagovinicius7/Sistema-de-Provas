@@ -35,6 +35,12 @@ export interface Evento {
   conteudo: string;
   obs: string;
   planejamento: string;
+  /** Lista de tópicos do edital editada à mão (vazia = extrair do conteúdo). */
+  topicos: string[];
+  /** Pagamento efetivo. null = ainda não registrado. */
+  valorRecebido: number | null;
+  /** yyyy-mm-dd */
+  dataPagamento: string;
   criadoEm?: unknown;
   atualizadoEm?: unknown;
 }
@@ -49,6 +55,8 @@ export interface Item {
   dif?: Dificuldade;
   edital: string;
   justificativa: string;
+  /** Referência bibliográfica da justificativa (campo próprio desde o BancoP). */
+  fonte?: string;
 }
 
 export interface Questao {

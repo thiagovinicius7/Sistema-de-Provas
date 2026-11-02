@@ -1,5 +1,6 @@
 import type { Evento, Questao } from './types';
 import { dataBR, ordenarQuestoes } from './util';
+import { rotuloFonte } from './fonte';
 
 /** Mesmo nome de arquivo do sistema antigo. */
 export function nomeDaProva(e: Evento): string {
@@ -22,14 +23,16 @@ function montar(e: Evento, questoes: Questao[]) {
         q.tipo === 'ME'
           ? it.gab ? ` [Gab: ${it.gab}]` : ''
           : ` (Dif: ${it.dif || '-'} | Gab: ${it.gab || '-'})`;
+      const fonte = (it.fonte || '').trim();
+      const just = [it.justificativa?.trim(), fonte ? `${rotuloFonte(fonte)}: ${fonte}` : ''].filter(Boolean).join('\n');
       const temEdital = !!it.edital?.trim();
-      const temJust = !!it.justificativa?.trim();
+      const temJust = !!just;
       const nota =
         temEdital || temJust
           ? '↳ ' +
             (temEdital ? `Edital: ${it.edital.trim()}` : '') +
             (temEdital && temJust ? ' | ' : '') +
-            (temJust ? `Justificativa: ${it.justificativa.trim()}` : '')
+            (temJust ? `Justificativa: ${just}` : '')
           : undefined;
       return { rotulo: rotulo + gab, texto: it.texto || '', nota };
     });

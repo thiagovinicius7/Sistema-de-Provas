@@ -229,6 +229,7 @@ function Sistema({ usuario }: { usuario: User }) {
           key={evento.id}
           evento={evento}
           questoes={questoesEvento}
+          todasQuestoes={questoes}
           selecionada={rota.questao}
           irPara={(q, subst) => navegar({ evento: evento.id, questao: q }, subst)}
           voltar={() => navegar({ evento: null, questao: null })}

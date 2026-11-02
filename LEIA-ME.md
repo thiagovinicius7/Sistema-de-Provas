@@ -53,9 +53,24 @@ O plano gratuito do Firebase não faz backup automático. Use
 
 ## Dados (Firestore)
 
-- `eventos/{id}`: titulo, cargo, data (aaaa-mm-dd), tipo (CE/ME), status, meta, valorUnit,
-  metaF, metaM, metaD (%), link, conteudo (edital), obs, planejamento.
+- `eventos/{id}`: titulo, cargo, data (aaaa-mm-dd, data de entrega), tipo (CE/ME), status, meta,
+  valorUnit, metaF, metaM, metaD (%), link, conteudo (edital), obs, planejamento,
+  topicos (lista editada à mão; vazia = lida do conteúdo), valorRecebido (null = não registrado),
+  dataPagamento.
 - `questoes/{id}`: eventoId, numero, enunciado, tipo, dif e gab (só ME),
-  itens [{ letra (ME), dif (CE), texto, gab, edital, justificativa }].
+  itens [{ letra (ME), dif (CE), texto, gab, edital, justificativa, fonte }].
+
+## Regras automáticas
+
+- **Prazo**: conta os dias até a data do evento enquanto o status for "Evento não iniciado" ou
+  "Em elaboração".
+- **Recebido no ano**: usa o valor e a data do pagamento registrado. Eventos finalizados antes do
+  registro de pagamento existir contam pelo total previsto, na data do evento.
+- **Cobertura do edital**: o item cita um tópico pelo número ("1.2", "2.5 —") ou pelo texto.
+- **Justificativa**: ao marcar o gabarito do item, o texto passa a começar com "Item certo." ou
+  "Item errado." (se já começava, só a palavra é trocada).
+- **Fonte**: justificativas antigas com "Fonte:"/"Fontes:" no fim têm a fonte separada no campo
+  próprio ao abrir a questão; nada do texto é perdido. Na prova, a fonte volta para o fim da
+  justificativa, como antes.
 
 Os IDs da planilha antiga foram mantidos na importação.

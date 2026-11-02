@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, CalendarDays, ChevronRight, ClipboardList, FileDown, FileText, Loader2, NotebookPen, Pencil, Plus, ScrollText, StickyNote,
+  ArrowLeft, CalendarDays, ChevronRight, ClipboardList, FileDown, FileText, ListChecks, Loader2, NotebookPen, Pencil, Plus, ScrollText, StickyNote,
 } from 'lucide-react';
 import type { Evento, Questao } from '../lib/types';
 import { salvarPlanejamento } from '../lib/data';
@@ -8,11 +8,14 @@ import { ESCOPO_DRIVE, auth, obterTokenGoogle } from '../lib/firebase';
 import { criarNoGoogleDocs, criarWord, nomeDaProva } from '../lib/prova';
 import { baixarArquivo } from '../lib/importar';
 import { calcularProgresso, dataBR, moeda, ordenarQuestoes, totalEvento } from '../lib/util';
-import { BotaoLink, SeletorStatus } from './Dashboard';
+import { BotaoLink, SeletorStatus, SeloPagamento, SeloPrazo } from './Dashboard';
+import Cobertura from './Cobertura';
+import Pagamento from './Pagamento';
+import { topicosDoEvento } from '../lib/edital';
 import QuestaoForm from './QuestaoForm';
 import { Botao, Modal, TextoAuto, cx, msgErro, useAvisos } from './ui';
 
-type Painel = 'plan' | 'edital' | 'obs' | null;
+type Painel = 'plan' | 'cobertura' | 'edital' | 'obs' | null;
 
 function Meta({ rotulo, feito, alvo, cor }: { rotulo: string; feito: number; alvo: number; cor: string }) {
   const ok = alvo > 0 && feito >= alvo;
@@ -82,6 +85,7 @@ function Planejamento({ evento }: { evento: Evento }) {
 export default function EventoTela({
   evento,
   questoes,
+  todasQuestoes,
   selecionada,
   irPara,
   voltar,
@@ -91,6 +95,8 @@ export default function EventoTela({
 }: {
   evento: Evento;
   questoes: Questao[];
+  /** Todas as questões do banco, para a lista de fontes já usadas. */
+  todasQuestoes: Questao[];
   selecionada: string | null;
   irPara: (qid: string | null, substituir?: boolean) => void;
   voltar: () => void;
@@ -103,6 +109,8 @@ export default function EventoTela({
   const [gerando, setGerando] = useState<'' | 'docs' | 'word'>('');
   const [menuProva, setMenuProva] = useState(false);
   const [linkDoc, setLinkDoc] = useState('');
+  const [pagamento, setPagamento] = useState(false);
+  const topicos = useMemo(() => topicosDoEvento(evento), [evento.topicos, evento.conteudo]); // eslint-disable-line
 
   const lista = useMemo(() => ordenarQuestoes(questoes), [questoes]);
   const p = calcularProgresso(evento, questoes);
@@ -249,6 +257,8 @@ export default function EventoTela({
                 <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" />{dataBR(evento.data)}</span>
                 <span className="font-semibold text-emerald-700">{moeda(totalEvento(evento))}</span>
                 <SeletorStatus evento={evento} />
+                <SeloPrazo evento={evento} />
+                <SeloPagamento evento={evento} aoClicar={() => setPagamento(true)} />
               </div>
             </div>
             <div className="flex shrink-0 items-center gap-1">
@@ -310,6 +320,7 @@ export default function EventoTela({
 
           <div className="mt-3 flex flex-wrap gap-2">
             {botaoPainel('plan', 'Planejamento', NotebookPen)}
+            {botaoPainel('cobertura', 'Cobertura do edital', ListChecks)}
             {botaoPainel('edital', 'Edital', ScrollText)}
             {botaoPainel('obs', 'Observações', StickyNote)}
           </div>
@@ -318,12 +329,23 @@ export default function EventoTela({
               className={cx(
                 'mt-3 rounded-xl p-3 ring-1',
                 painel === 'plan' && 'bg-violet-50 ring-violet-200',
+                painel === 'cobertura' && 'bg-emerald-50/60 ring-emerald-200',
                 painel === 'edital' && 'bg-sky-50 ring-sky-200',
                 painel === 'obs' && 'bg-amber-50 ring-amber-200',
               )}
             >
               {painel === 'plan' && <Planejamento key={evento.id} evento={evento} />}
-              {painel !== 'plan' && (
+              {painel === 'cobertura' && (
+                <Cobertura
+                  evento={evento}
+                  questoes={questoes}
+                  abrirQuestao={(n) => {
+                    const q = lista.find((x) => x.numero === n);
+                    if (q) abrirQuestao(q.id);
+                  }}
+                />
+              )}
+              {(painel === 'edital' || painel === 'obs') && (
                 <div className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-700 barra-fina">
                   {(painel === 'edital' ? evento.conteudo : evento.obs) || (
                     <span className="text-slate-400">Vazio. Use o lápis no topo para editar o evento.</span>
@@ -358,6 +380,8 @@ export default function EventoTela({
                 questao={atual}
                 proximoNumero={proximo}
                 numerosUsados={numeros}
+                topicos={topicos}
+                todasQuestoes={todasQuestoes}
                 aoMudarSujo={aoMudarSujo}
                 aoSalvar={(id, nova) => nova && irPara(id, true)}
                 aoExcluir={() => irPara(window.matchMedia('(min-width: 1024px)').matches ? 'nova' : null, true)}
@@ -371,6 +395,7 @@ export default function EventoTela({
         </main>
       </div>
 
+      {pagamento && <Pagamento evento={evento} aoFechar={() => setPagamento(false)} />}
       <Modal aberto={!!linkDoc} aoFechar={() => setLinkDoc('')} titulo="Prova gerada" largura="max-w-sm">
         <div className="text-center">
           <p className="mb-4 text-sm text-slate-600">O documento foi criado no seu Google Drive.</p>

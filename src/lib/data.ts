@@ -39,6 +39,9 @@ export function lerEvento(id: string, d: any): Evento {
     conteudo: txt(d?.conteudo),
     obs: txt(d?.obs),
     planejamento: txt(d?.planejamento),
+    topicos: Array.isArray(d?.topicos) ? d.topicos.map(txt).filter(Boolean) : [],
+    valorRecebido: d?.valorRecebido === null || d?.valorRecebido === undefined || d?.valorRecebido === '' ? null : num(d.valorRecebido),
+    dataPagamento: normalizarData(d?.dataPagamento),
     criadoEm: d?.criadoEm,
     atualizadoEm: d?.atualizadoEm,
   };
@@ -51,6 +54,7 @@ function lerItem(i: any): Item {
     edital: txt(i?.edital),
     justificativa: txt(i?.justificativa),
   };
+  if (i?.fonte) it.fonte = txt(i.fonte);
   if (i?.letra) it.letra = txt(i.letra);
   if (i?.dif !== undefined) it.dif = (['F', 'M', 'D'].includes(i.dif) ? i.dif : '') as Item['dif'];
   return it;
@@ -96,7 +100,8 @@ function limparItem(i: Item, tipo: 'CE' | 'ME'): Item {
     texto: i.texto || '',
     gab: (i.gab || '').trim(),
     edital: i.edital || '',
-    justificativa: i.justificativa || '',
+    justificativa: (i.justificativa || '').trim(),
+    fonte: (i.fonte || '').trim(),
   };
   if (tipo === 'ME') it.letra = i.letra || '';
   else it.dif = i.dif || '';
@@ -118,6 +123,8 @@ export async function salvarEvento(id: string | null, dados: EventoDados): Promi
     link: dados.link.trim(),
     conteudo: dados.conteudo,
     obs: dados.obs,
+    valorRecebido: dados.valorRecebido === null ? null : num(dados.valorRecebido),
+    dataPagamento: dados.valorRecebido === null ? '' : dados.dataPagamento || '',
     atualizadoEm: serverTimestamp(),
   };
   if (id) {
@@ -128,6 +135,7 @@ export async function salvarEvento(id: string | null, dados: EventoDados): Promi
       ...payload,
       status: 'Evento não iniciado',
       planejamento: '',
+      topicos: [],
       criadoEm: serverTimestamp(),
     });
   }
@@ -136,6 +144,18 @@ export async function salvarEvento(id: string | null, dados: EventoDados): Promi
 
 export function mudarStatus(id: string, status: StatusEvento) {
   return updateDoc(doc(db, COL_EVENTOS, id), { status, atualizadoEm: serverTimestamp() });
+}
+
+export function salvarTopicos(id: string, topicos: string[]) {
+  return updateDoc(doc(db, COL_EVENTOS, id), { topicos, atualizadoEm: serverTimestamp() });
+}
+
+export function registrarPagamento(id: string, valorRecebido: number | null, dataPagamento: string) {
+  return updateDoc(doc(db, COL_EVENTOS, id), {
+    valorRecebido,
+    dataPagamento: valorRecebido === null ? '' : dataPagamento,
+    atualizadoEm: serverTimestamp(),
+  });
 }
 
 export function salvarPlanejamento(id: string, planejamento: string) {

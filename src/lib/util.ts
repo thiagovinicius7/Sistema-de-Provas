@@ -1,4 +1,5 @@
 import type { Evento, Questao, StatusEvento } from './types';
+import { STATUS_FINAL } from './types';
 
 export function num(v: unknown): number {
   if (typeof v === 'number') return Number.isFinite(v) ? v : 0;
@@ -101,4 +102,53 @@ export function ordenarQuestoes(qs: Questao[]): Questao[] {
 
 export function semAcento(s: string): string {
   return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+}
+
+// ---------- Prazos e pagamento ----------
+
+/** Data de hoje no fuso do aparelho, yyyy-mm-dd. */
+export function hojeISO(): string {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function diasEntre(de: string, ate: string): number {
+  const [a, b] = [de, ate].map((s) => {
+    const [y, m, d] = s.split('-').map(Number);
+    return Date.UTC(y, m - 1, d);
+  });
+  return Math.round((b - a) / 86400000);
+}
+
+export interface Prazo {
+  dias: number;
+  texto: string;
+  nivel: 'atrasado' | 'urgente' | 'perto' | 'ok';
+}
+
+/** Prazo de entrega: só conta enquanto a prova não foi entregue. */
+export function prazoEvento(e: Evento, hoje = hojeISO()): Prazo | null {
+  if (!e.data || !['Evento não iniciado', 'Em elaboração'].includes(e.status)) return null;
+  const dias = diasEntre(hoje, e.data);
+  if (dias < 0) return { dias, texto: `Atrasado ${-dias} dia${dias === -1 ? '' : 's'}`, nivel: 'atrasado' };
+  if (dias === 0) return { dias, texto: 'Entrega hoje', nivel: 'urgente' };
+  if (dias === 1) return { dias, texto: 'Entrega amanhã', nivel: 'urgente' };
+  return { dias, texto: `Faltam ${dias} dias`, nivel: dias <= 3 ? 'urgente' : dias <= 7 ? 'perto' : 'ok' };
+}
+
+export const COR_PRAZO: Record<Prazo['nivel'], string> = {
+  atrasado: 'bg-rose-600 text-white',
+  urgente: 'bg-rose-100 text-rose-800',
+  perto: 'bg-amber-100 text-amber-800',
+  ok: 'bg-slate-100 text-slate-600',
+};
+
+/**
+ * Quanto entrou e quando. Eventos finalizados antes do registro de pagamento
+ * existir contam pelo total previsto, na data do evento.
+ */
+export function recebimento(e: Evento): { valor: number; data: string; registrado: boolean } | null {
+  if (e.valorRecebido !== null) return { valor: e.valorRecebido, data: e.dataPagamento || e.data, registrado: true };
+  if (e.status === STATUS_FINAL) return { valor: totalEvento(e), data: e.data, registrado: false };
+  return null;
 }

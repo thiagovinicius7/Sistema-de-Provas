@@ -2,16 +2,18 @@ import { useEffect, useState } from 'react';
 import { Trash2 } from 'lucide-react';
 import type { Evento, EventoDados } from '../lib/types';
 import { salvarEvento, excluirEvento } from '../lib/data';
-import { moeda, num } from '../lib/util';
+import { hojeISO, moeda, num } from '../lib/util';
 import { Botao, Campo, Modal, Segmentado, TextoAuto, estiloInput, msgErro, useAvisos } from './ui';
 
 const VAZIO: EventoDados = {
   titulo: '', cargo: '', data: '', tipo: 'CE', status: 'Evento não iniciado', meta: 0, valorUnit: 0,
   metaF: 30, metaM: 50, metaD: 20, link: '', conteudo: '', obs: '', planejamento: '',
+  topicos: [], valorRecebido: null, dataPagamento: '',
 };
 
-type Form = Omit<EventoDados, 'meta' | 'valorUnit' | 'metaF' | 'metaM' | 'metaD'> & {
+type Form = Omit<EventoDados, 'meta' | 'valorUnit' | 'metaF' | 'metaM' | 'metaD' | 'valorRecebido'> & {
   meta: string; valorUnit: string; metaF: string; metaM: string; metaD: string;
+  recebido: boolean; valorRecebido: string;
 };
 
 const paraForm = (e: EventoDados): Form => ({
@@ -21,6 +23,8 @@ const paraForm = (e: EventoDados): Form => ({
   metaF: String(e.metaF ?? ''),
   metaM: String(e.metaM ?? ''),
   metaD: String(e.metaD ?? ''),
+  recebido: e.valorRecebido !== null,
+  valorRecebido: e.valorRecebido !== null ? String(e.valorRecebido) : '',
 });
 
 export default function EventoForm({
@@ -62,10 +66,13 @@ export default function EventoForm({
     }
     setSalvando(true);
     try {
+      const { recebido, ...resto } = f;
       const dados: EventoDados = {
-        ...f,
+        ...resto,
         meta: num(f.meta), valorUnit: num(f.valorUnit),
         metaF: num(f.metaF), metaM: num(f.metaM), metaD: num(f.metaD),
+        valorRecebido: recebido ? num(f.valorRecebido) : null,
+        dataPagamento: recebido ? f.dataPagamento || hojeISO() : '',
       };
       const id = await salvarEvento(evento?.id || null, dados);
       avisar(evento ? 'Evento atualizado.' : 'Evento criado.');
@@ -169,6 +176,37 @@ export default function EventoForm({
             <p className="mt-2 text-xs font-medium text-amber-700">Os percentuais somam {somaPct}% (o esperado é 100%).</p>
           )}
         </div>
+
+        {evento && (
+          <div className="rounded-xl bg-slate-50 p-3 ring-1 ring-slate-100">
+            <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+              <input
+                type="checkbox"
+                className="size-4 accent-emerald-600"
+                checked={f.recebido}
+                onChange={(e) =>
+                  setF((x) => ({
+                    ...x,
+                    recebido: e.target.checked,
+                    valorRecebido: x.valorRecebido || String(total),
+                    dataPagamento: x.dataPagamento || hojeISO(),
+                  }))
+                }
+              />
+              Pagamento recebido
+            </label>
+            {f.recebido && (
+              <div className="mt-3 grid grid-cols-2 gap-3">
+                <Campo rotulo="Valor recebido (R$)">
+                  <input type="number" inputMode="decimal" step="0.01" min={0} className={estiloInput} value={f.valorRecebido} onChange={muda('valorRecebido')} />
+                </Campo>
+                <Campo rotulo="Data do pagamento">
+                  <input type="date" className={estiloInput} value={f.dataPagamento} onChange={muda('dataPagamento')} />
+                </Campo>
+              </div>
+            )}
+          </div>
+        )}
 
         <Campo rotulo="Link da pasta (Drive, OneDrive…)">
           <input className={estiloInput} value={f.link} onChange={muda('link')} placeholder="https://" />
