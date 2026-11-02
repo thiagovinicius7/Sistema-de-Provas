@@ -1,0 +1,65 @@
+rules_version = '2';
+
+// Regras do BancoP (Sistema de Provas).
+//
+// Só duas contas entram:
+//   - thiagovinicius7@gmail.com, pelo login Google (dono);
+//   - claude@sitioescolageranium.com.br, pelo login de e-mail/senha (editor).
+// Qualquer outra conta, mesmo logada, não lê nem grava nada.
+//
+// Mantenha esta lista igual a src/lib/acesso.ts.
+// Publicar: Firebase Console → Firestore Database → Regras → colar → Publicar.
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function ehDono() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'google.com'
+        && request.auth.token.email_verified == true
+        && request.auth.token.email.lower() == 'thiagovinicius7@gmail.com';
+    }
+
+    function ehClaude() {
+      return request.auth != null
+        && request.auth.token.firebase.sign_in_provider == 'password'
+        && request.auth.token.email.lower() == 'claude@sitioescolageranium.com.br';
+    }
+
+    function autorizado() {
+      return ehDono() || ehClaude();
+    }
+
+    function eventoValido(d) {
+      return d.titulo is string && d.titulo.size() > 0 && d.titulo.size() <= 300
+        && d.tipo in ['CE', 'ME']
+        && d.status is string
+        && d.meta is number && d.valorUnit is number
+        && d.metaF is number && d.metaM is number && d.metaD is number
+        && d.data is string;
+    }
+
+    function questaoValida(d) {
+      return d.eventoId is string && d.eventoId.size() > 0
+        && d.numero is number
+        && d.enunciado is string
+        && d.tipo in ['CE', 'ME']
+        && d.itens is list && d.itens.size() <= 100;
+    }
+
+    match /eventos/{id} {
+      allow read, delete: if autorizado();
+      allow create, update: if autorizado() && eventoValido(request.resource.data);
+    }
+
+    match /questoes/{id} {
+      allow read, delete: if autorizado();
+      allow create, update: if autorizado() && questaoValida(request.resource.data);
+    }
+
+    // Qualquer outra coleção fica fechada.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

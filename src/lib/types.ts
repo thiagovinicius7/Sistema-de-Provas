@@ -1,0 +1,69 @@
+export type TipoProva = 'CE' | 'ME';
+export type Dificuldade = 'F' | 'M' | 'D' | '';
+
+export const LISTA_STATUS = [
+  'Evento não iniciado',
+  'Em elaboração',
+  'Entrega realizada',
+  'Liberação feita',
+  'Recursos respondidos',
+  'Esperando pagamento',
+  'Evento finalizado',
+] as const;
+
+export type StatusEvento = (typeof LISTA_STATUS)[number];
+
+export const STATUS_FINAL: StatusEvento = 'Evento finalizado';
+
+export interface Evento {
+  id: string;
+  titulo: string;
+  cargo: string;
+  /** yyyy-mm-dd */
+  data: string;
+  tipo: TipoProva;
+  status: StatusEvento;
+  /** Meta total: nº de questões (ME) ou de itens (CE). */
+  meta: number;
+  /** Valor pago por questão/item. */
+  valorUnit: number;
+  /** Percentuais de Fácil, Médio e Difícil. */
+  metaF: number;
+  metaM: number;
+  metaD: number;
+  link: string;
+  conteudo: string;
+  obs: string;
+  planejamento: string;
+  criadoEm?: unknown;
+  atualizadoEm?: unknown;
+}
+
+export interface Item {
+  /** Só ME: A, B, C, D, E. */
+  letra?: string;
+  texto: string;
+  /** ME: certa/errada. CE: C/E. Texto livre preservado do sistema antigo. */
+  gab: string;
+  /** Só CE. */
+  dif?: Dificuldade;
+  edital: string;
+  justificativa: string;
+}
+
+export interface Questao {
+  id: string;
+  eventoId: string;
+  numero: number;
+  enunciado: string;
+  tipo: TipoProva;
+  /** Só ME: dificuldade e gabarito da questão. */
+  dif: Dificuldade;
+  gab: string;
+  itens: Item[];
+  criadoEm?: unknown;
+  atualizadoEm?: unknown;
+}
+
+export type EventoDados = Omit<Evento, 'id' | 'criadoEm' | 'atualizadoEm'>;
+export type QuestaoDados = Omit<Questao, 'id' | 'criadoEm' | 'atualizadoEm'>;
