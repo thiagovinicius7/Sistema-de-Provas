@@ -8,7 +8,7 @@ import { Botao, Campo, Modal, Segmentado, TextoAuto, estiloInput, msgErro, useAv
 const VAZIO: EventoDados = {
   titulo: '', cargo: '', data: '', tipo: 'CE', status: 'Evento não iniciado', meta: 0, valorUnit: 0,
   metaF: 30, metaM: 50, metaD: 20, link: '', conteudo: '', obs: '', planejamento: '',
-  topicos: [], valorRecebido: null, dataPagamento: '',
+  topicos: [], fontes: [], valorRecebido: null, dataPagamento: '',
 };
 
 type Form = Omit<EventoDados, 'meta' | 'valorUnit' | 'metaF' | 'metaM' | 'metaD' | 'valorRecebido'> & {

@@ -3,7 +3,7 @@ import { ChevronDown, Pencil, Plus, Trash2 } from 'lucide-react';
 import type { Recebimento } from '../lib/types';
 import { excluirRecebimento, salvarRecebimento } from '../lib/data';
 import { dataBR, hojeISO, moeda, num } from '../lib/util';
-import { Botao, Campo, Modal, cx, estiloInput, msgErro, useAvisos } from './ui';
+import { Botao, Campo, Modal, Valor, cx, estiloInput, msgErro, useAvisos } from './ui';
 
 type Form = { id: string | null; data: string; descricao: string; horas: string; valor: string };
 
@@ -55,7 +55,7 @@ export default function OutrosRecebimentos({ lista }: { lista: Recebimento[] }) 
           <ChevronDown className={cx('size-4 transition-transform', !aberto && '-rotate-90')} />
           Outros recebimentos <span className="text-slate-400">({lista.length})</span>
         </button>
-        {lista.length > 0 && <span className="text-xs text-slate-500">· {moeda(total)}</span>}
+        {lista.length > 0 && <span className="text-xs text-slate-500">· <Valor>{moeda(total)}</Valor></span>}
         <Botao
           pequeno
           variante="fantasma"
@@ -78,7 +78,7 @@ export default function OutrosRecebimentos({ lista }: { lista: Recebimento[] }) 
                 <div className="truncate text-sm text-slate-800">{r.descricao}</div>
                 {r.horas !== null && <div className="text-xs text-slate-500">{r.horas} h</div>}
               </div>
-              <div className="text-sm font-semibold tabular-nums text-emerald-700">{moeda(r.valor)}</div>
+              <Valor className="text-sm font-semibold tabular-nums text-emerald-700">{moeda(r.valor)}</Valor>
               <button
                 className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-800"
                 title="Editar"

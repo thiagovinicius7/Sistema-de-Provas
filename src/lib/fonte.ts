@@ -1,4 +1,4 @@
-import type { Questao } from './types';
+import type { Evento, Questao } from './types';
 
 /** Separa o trecho "Fonte: …" de uma justificativa antiga. Não descarta nada. */
 export function separarFonte(justificativa: string): { justificativa: string; fonte: string } {
@@ -67,3 +67,32 @@ export function catalogoDeFontes(questoes: Questao[]): string[] {
 export function rotuloFonte(fonte: string): string {
   return fonte.trim().includes('\n') ? 'Fontes' : 'Fonte';
 }
+
+/** Cada linha do campo fonte é uma referência. */
+export function linhasDaFonte(fonte: string): string[] {
+  return (fonte || '').split('\n').map((l) => l.replace(/\s+/g, ' ').trim()).filter((l) => l.length >= 5);
+}
+
+/** Fontes deste evento: as cadastradas nele e as já usadas nas questões dele. */
+export function fontesDoEvento(evento: Evento, questoesDoEvento: Questao[]): string[] {
+  const vistos = new Set<string>();
+  const saida: string[] = [];
+  for (const f of [...evento.fontes, ...catalogoDeFontes(questoesDoEvento)]) {
+    const k = chave(f);
+    if (vistos.has(k)) continue;
+    vistos.add(k);
+    saida.push(f);
+  }
+  return saida;
+}
+
+/** Pastas com as fontes de cada um dos outros eventos, do mais recente para o mais antigo. */
+export function pastasDeFontes(eventos: Evento[], questoes: Questao[], excetoId: string) {
+  return eventos
+    .filter((e) => e.id !== excetoId)
+    .sort((a, b) => b.data.localeCompare(a.data))
+    .map((e) => ({ evento: e, fontes: fontesDoEvento(e, questoes.filter((q) => q.eventoId === e.id)) }))
+    .filter((p) => p.fontes.length > 0);
+}
+
+export { chave as chaveFonte };

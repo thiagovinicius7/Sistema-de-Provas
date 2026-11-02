@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
-  ArrowLeft, CalendarDays, ChevronRight, ClipboardList, FileDown, FileText, ListChecks, Loader2, NotebookPen, Pencil, Plus, ScrollText, StickyNote,
+  ArrowLeft, CalendarDays, ChevronRight, ClipboardList, FileDown, FileText, Library, ListChecks, Loader2, NotebookPen, Pencil, Plus, ScrollText, StickyNote,
 } from 'lucide-react';
 import type { Evento, Questao } from '../lib/types';
 import { salvarPlanejamento } from '../lib/data';
@@ -10,12 +10,13 @@ import { baixarArquivo } from '../lib/importar';
 import { calcularProgresso, dataBR, moeda, ordenarQuestoes, totalEvento } from '../lib/util';
 import { BotaoLink, SeletorStatus, SeloPagamento, SeloPrazo } from './Dashboard';
 import Cobertura from './Cobertura';
+import { PainelFontes } from './Fontes';
 import Pagamento from './Pagamento';
 import { topicosDoEvento } from '../lib/edital';
 import QuestaoForm from './QuestaoForm';
-import { Botao, Modal, TextoAuto, cx, msgErro, useAvisos } from './ui';
+import { Botao, Modal, TextoAuto, Valor, cx, msgErro, useAvisos } from './ui';
 
-type Painel = 'plan' | 'cobertura' | 'edital' | 'obs' | null;
+type Painel = 'plan' | 'cobertura' | 'fontes' | 'edital' | 'obs' | null;
 
 function Meta({ rotulo, feito, alvo, cor }: { rotulo: string; feito: number; alvo: number; cor: string }) {
   const ok = alvo > 0 && feito >= alvo;
@@ -86,6 +87,7 @@ export default function EventoTela({
   evento,
   questoes,
   todasQuestoes,
+  todosEventos,
   selecionada,
   irPara,
   voltar,
@@ -97,6 +99,7 @@ export default function EventoTela({
   questoes: Questao[];
   /** Todas as questões do banco, para a lista de fontes já usadas. */
   todasQuestoes: Questao[];
+  todosEventos: Evento[];
   selecionada: string | null;
   irPara: (qid: string | null, substituir?: boolean) => void;
   voltar: () => void;
@@ -255,7 +258,7 @@ export default function EventoTela({
               {evento.cargo && <p className="line-clamp-2 text-xs text-slate-500">{evento.cargo}</p>}
               <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-slate-500">
                 <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" />{dataBR(evento.data)}</span>
-                <span className="font-semibold text-emerald-700">{moeda(totalEvento(evento))}</span>
+                <Valor className="font-semibold text-emerald-700">{moeda(totalEvento(evento))}</Valor>
                 <SeletorStatus evento={evento} />
                 <SeloPrazo evento={evento} />
                 <SeloPagamento evento={evento} aoClicar={() => setPagamento(true)} />
@@ -321,6 +324,7 @@ export default function EventoTela({
           <div className="mt-3 flex flex-wrap gap-2">
             {botaoPainel('plan', 'Planejamento', NotebookPen)}
             {botaoPainel('cobertura', 'Cobertura do edital', ListChecks)}
+            {botaoPainel('fontes', 'Fontes', Library)}
             {botaoPainel('edital', 'Edital', ScrollText)}
             {botaoPainel('obs', 'Observações', StickyNote)}
           </div>
@@ -330,6 +334,7 @@ export default function EventoTela({
                 'mt-3 rounded-xl p-3 ring-1',
                 painel === 'plan' && 'bg-violet-50 ring-violet-200',
                 painel === 'cobertura' && 'bg-emerald-50/60 ring-emerald-200',
+                painel === 'fontes' && 'bg-sky-50/60 ring-sky-200',
                 painel === 'edital' && 'bg-sky-50 ring-sky-200',
                 painel === 'obs' && 'bg-amber-50 ring-amber-200',
               )}
@@ -345,6 +350,7 @@ export default function EventoTela({
                   }}
                 />
               )}
+              {painel === 'fontes' && <PainelFontes evento={evento} eventos={todosEventos} questoes={todasQuestoes} />}
               {(painel === 'edital' || painel === 'obs') && (
                 <div className="max-h-[50vh] overflow-y-auto whitespace-pre-wrap text-sm leading-relaxed text-slate-700 barra-fina">
                   {(painel === 'edital' ? evento.conteudo : evento.obs) || (
@@ -382,6 +388,7 @@ export default function EventoTela({
                 numerosUsados={numeros}
                 topicos={topicos}
                 todasQuestoes={todasQuestoes}
+                todosEventos={todosEventos}
                 aoMudarSujo={aoMudarSujo}
                 aoSalvar={(id, nova) => nova && irPara(id, true)}
                 aoExcluir={() => irPara(window.matchMedia('(min-width: 1024px)').matches ? 'nova' : null, true)}

@@ -37,6 +37,8 @@ export interface Evento {
   planejamento: string;
   /** Lista de tópicos do edital editada à mão (vazia = extrair do conteúdo). */
   topicos: string[];
+  /** Fontes cadastradas neste evento (cada evento tem a sua lista). */
+  fontes: string[];
   /** Pagamento efetivo. null = ainda não registrado. */
   valorRecebido: number | null;
   /** yyyy-mm-dd */

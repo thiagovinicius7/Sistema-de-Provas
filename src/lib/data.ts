@@ -1,4 +1,6 @@
 import {
+  arrayRemove,
+  arrayUnion,
   collection,
   doc,
   onSnapshot,
@@ -41,6 +43,7 @@ export function lerEvento(id: string, d: any): Evento {
     obs: txt(d?.obs),
     planejamento: txt(d?.planejamento),
     topicos: Array.isArray(d?.topicos) ? d.topicos.map(txt).filter(Boolean) : [],
+    fontes: Array.isArray(d?.fontes) ? d.fontes.map(txt).filter(Boolean) : [],
     valorRecebido: d?.valorRecebido === null || d?.valorRecebido === undefined || d?.valorRecebido === '' ? null : num(d.valorRecebido),
     dataPagamento: normalizarData(d?.dataPagamento),
     criadoEm: d?.criadoEm,
@@ -137,6 +140,7 @@ export async function salvarEvento(id: string | null, dados: EventoDados): Promi
       status: 'Evento não iniciado',
       planejamento: '',
       topicos: [],
+      fontes: [],
       criadoEm: serverTimestamp(),
     });
   }
@@ -145,6 +149,17 @@ export async function salvarEvento(id: string | null, dados: EventoDados): Promi
 
 export function mudarStatus(id: string, status: StatusEvento) {
   return updateDoc(doc(db, COL_EVENTOS, id), { status, atualizadoEm: serverTimestamp() });
+}
+
+/** Cadastra fontes na lista do evento (sem repetir). */
+export function adicionarFontes(id: string, fontes: string[]) {
+  const lista = fontes.map((f) => f.replace(/\s+/g, ' ').trim()).filter((f) => f.length >= 5);
+  if (!lista.length) return Promise.resolve();
+  return updateDoc(doc(db, COL_EVENTOS, id), { fontes: arrayUnion(...lista), atualizadoEm: serverTimestamp() });
+}
+
+export function removerFonte(id: string, fonte: string) {
+  return updateDoc(doc(db, COL_EVENTOS, id), { fontes: arrayRemove(fonte), atualizadoEm: serverTimestamp() });
 }
 
 export function salvarTopicos(id: string, topicos: string[]) {

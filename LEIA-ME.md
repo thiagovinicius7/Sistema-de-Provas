@@ -55,7 +55,7 @@ O plano gratuito do Firebase não faz backup automático. Use
 
 - `eventos/{id}`: titulo, cargo, data (aaaa-mm-dd, data de entrega), tipo (CE/ME), status, meta,
   valorUnit, metaF, metaM, metaD (%), link, conteudo (edital), obs, planejamento,
-  topicos (lista editada à mão; vazia = lida do conteúdo), valorRecebido (null = não registrado),
+  topicos (lista editada à mão; vazia = lida do conteúdo), fontes (lista própria do evento), valorRecebido (null = não registrado),
   dataPagamento.
 - `questoes/{id}`: eventoId, numero, enunciado, tipo, dif e gab (só ME),
   itens [{ letra (ME), dif (CE), texto, gab, edital, justificativa, fonte }].
@@ -71,6 +71,11 @@ O plano gratuito do Firebase não faz backup automático. Use
 - **Cobertura do edital**: o item cita um tópico pelo número ("1.2", "2.5 —") ou pelo texto.
 - **Justificativa**: ao marcar o gabarito do item, o texto passa a começar com "Item certo." ou
   "Item errado." (se já começava, só a palavra é trocada).
+- **Fontes por evento**: a lista de sugestões mostra só as fontes do evento aberto. As dos outros
+  eventos ficam em pastas ("De outro evento") e, ao escolher uma, ela passa a fazer parte do evento.
+  Fonte nova digitada num item entra na lista do evento ao salvar a questão.
+- **Valores escondidos**: os valores em R$ aparecem embaçados; um toque mostra todos e o olho no
+  topo esconde de novo.
 - **Fonte**: justificativas antigas com "Fonte:"/"Fontes:" no fim têm a fonte separada no campo
   próprio ao abrir a questão; nada do texto é perdido. Na prova, a fonte volta para o fim da
   justificativa, como antes.

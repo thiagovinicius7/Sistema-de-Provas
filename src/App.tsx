@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { Loader2, LockKeyhole, Settings2, ShieldAlert } from 'lucide-react';
+import { Eye, EyeOff, Loader2, LockKeyhole, Settings2, ShieldAlert } from 'lucide-react';
 import { auth, entrarComGoogle, firebaseConfigurado, sair } from './lib/firebase';
 import { emailAutorizado } from './lib/acesso';
 import { ouvirEventos, ouvirQuestoes, ouvirRecebimentos } from './lib/data';
@@ -9,7 +9,7 @@ import Dashboard from './components/Dashboard';
 import EventoForm from './components/EventoForm';
 import EventoTela from './components/EventoTela';
 import Ferramentas from './components/Ferramentas';
-import { Botao, ProvedorAvisos, msgErro, useAvisos } from './components/ui';
+import { Botao, ProvedorAvisos, ProvedorValores, msgErro, useAvisos, useValores } from './components/ui';
 
 const INATIVIDADE_MIN = 60;
 
@@ -98,6 +98,20 @@ function Carregando({ texto = 'Carregando…' }: { texto?: string }) {
       <Loader2 className="size-7 animate-spin text-slate-400" />
       {texto}
     </div>
+  );
+}
+
+function BotaoValores() {
+  const { visivel, mostrar, esconder } = useValores();
+  return (
+    <button
+      onClick={visivel ? esconder : mostrar}
+      className="inline-flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+      aria-label={visivel ? 'Esconder valores' : 'Mostrar valores'}
+      title={visivel ? 'Esconder valores' : 'Mostrar valores'}
+    >
+      {visivel ? <EyeOff className="size-5" /> : <Eye className="size-5" />}
+    </button>
   );
 }
 
@@ -233,6 +247,7 @@ function Sistema({ usuario }: { usuario: User }) {
           evento={evento}
           questoes={questoesEvento}
           todasQuestoes={questoes}
+          todosEventos={eventos}
           selecionada={rota.questao}
           irPara={(q, subst) => navegar({ evento: evento.id, questao: q }, subst)}
           voltar={() => navegar({ evento: null, questao: null })}
@@ -254,6 +269,7 @@ function Sistema({ usuario }: { usuario: User }) {
             <div className="text-sm font-bold text-slate-900">BancoP</div>
             <div className="text-[11px] text-slate-500">Banco de questões e provas</div>
           </div>
+          <BotaoValores />
           <button
             onClick={() => setFerramentas(true)}
             className="inline-flex size-9 items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-900"
@@ -293,5 +309,9 @@ export default function App() {
   else if (!emailAutorizado(usuario.email)) tela = <TelaNegado email={usuario.email} />;
   else tela = <Sistema key={usuario.uid} usuario={usuario} />;
 
-  return <ProvedorAvisos>{tela}</ProvedorAvisos>;
+  return (
+    <ProvedorAvisos>
+      <ProvedorValores>{tela}</ProvedorValores>
+    </ProvedorAvisos>
+  );
 }

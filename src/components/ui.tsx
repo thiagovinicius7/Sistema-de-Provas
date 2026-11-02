@@ -255,3 +255,41 @@ export function msgErro(e: unknown): string {
   if (code.includes('popup-closed') || code.includes('cancelled-popup')) return 'A janela do Google foi fechada antes de concluir.';
   return m;
 }
+
+// ---------- Valores em R$ escondidos ----------
+
+const CtxValores = createContext<{ visivel: boolean; mostrar: () => void; esconder: () => void }>({
+  visivel: false,
+  mostrar: () => {},
+  esconder: () => {},
+});
+
+export const useValores = () => useContext(CtxValores);
+
+/** Os valores começam embaçados; um toque em qualquer um mostra todos. */
+export function ProvedorValores({ children }: { children: ReactNode }) {
+  const [visivel, setVisivel] = useState(false);
+  return (
+    <CtxValores.Provider value={{ visivel, mostrar: () => setVisivel(true), esconder: () => setVisivel(false) }}>
+      {children}
+    </CtxValores.Provider>
+  );
+}
+
+export function Valor({ children, className }: { children: ReactNode; className?: string }) {
+  const { visivel, mostrar } = useValores();
+  if (visivel) return <span className={className}>{children}</span>;
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      title="Toque para mostrar os valores"
+      aria-label="Valor escondido. Toque para mostrar."
+      onClick={(e) => { e.stopPropagation(); mostrar(); }}
+      onKeyDown={(e) => { if (e.key === 'Enter') { e.stopPropagation(); mostrar(); } }}
+      className={cx(className, 'cursor-pointer select-none blur-[6px] transition-[filter]')}
+    >
+      {children}
+    </span>
+  );
+}

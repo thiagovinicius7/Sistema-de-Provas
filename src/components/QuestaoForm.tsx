@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BookMarked, Check, CopyPlus, Library, Plus, Save, Search, Trash2, X } from 'lucide-react';
+import { BookMarked, Check, CopyPlus, FolderOpen, Library, Plus, Save, Search, Trash2, X } from 'lucide-react';
 import type { Dificuldade, Evento, Item, Questao } from '../lib/types';
 import { salvarQuestao, excluirQuestao } from '../lib/data';
 import { type Topico, topicosCitados } from '../lib/edital';
-import { aplicarPrefixo, catalogoDeFontes, separarFonte } from '../lib/fonte';
+import { aplicarPrefixo, chaveFonte, fontesDoEvento, linhasDaFonte, separarFonte } from '../lib/fonte';
+import { adicionarFontes } from '../lib/data';
+import { PastasFontes } from './Fontes';
 import { semAcento } from '../lib/util';
 import { Botao, Campo, Modal, Segmentado, TextoAuto, cx, estiloInput, msgErro, useAvisos } from './ui';
 
@@ -72,6 +74,7 @@ export default function QuestaoForm({
   numerosUsados,
   topicos,
   todasQuestoes,
+  todosEventos,
   aoSalvar,
   aoExcluir,
   aoMudarSujo,
@@ -82,6 +85,7 @@ export default function QuestaoForm({
   numerosUsados: Map<number, string>;
   topicos: Topico[];
   todasQuestoes: Questao[];
+  todosEventos: Evento[];
   aoSalvar: (id: string, nova: boolean) => void;
   aoExcluir: () => void;
   aoMudarSujo: (sujo: boolean) => void;
@@ -122,7 +126,12 @@ export default function QuestaoForm({
   useEffect(() => aoMudarSujo(sujo), [sujo, aoMudarSujo]);
 
   const [seletorTopico, setSeletorTopico] = useState<number | null>(null);
-  const fontes = useMemo(() => catalogoDeFontes(todasQuestoes), [todasQuestoes]);
+  // Só as fontes deste evento; as dos outros ficam nas pastas.
+  const fontes = useMemo(
+    () => fontesDoEvento(evento, todasQuestoes.filter((q) => q.eventoId === evento.id)),
+    [evento, todasQuestoes],
+  );
+  const [pastasPara, setPastasPara] = useState<number | null>(null);
 
   const mudaItem = (i: number, campo: keyof Item, valor: string) =>
     setS((x) => {
@@ -168,6 +177,10 @@ export default function QuestaoForm({
       });
       base.current = JSON.stringify(s);
       aoMudarSujo(false);
+      // Fontes novas digitadas nos itens entram na lista do evento.
+      const conhecidas = new Set(evento.fontes.map(chaveFonte));
+      const novas = [...new Set(s.itens.flatMap((it) => linhasDaFonte(it.fonte || '')))].filter((f) => !conhecidas.has(chaveFonte(f)));
+      if (novas.length) adicionarFontes(evento.id, novas).catch(() => {});
       avisar(questao ? `Questão ${numero} salva.` : `Questão ${numero} criada.`);
       aoSalvar(id, !questao);
     } catch (e) {
@@ -325,6 +338,7 @@ export default function QuestaoForm({
             <CampoFonte
               valor={it.fonte || ''}
               fontes={fontes}
+              aoAbrirPastas={() => setPastasPara(i)}
               anterior={i > 0 ? s.itens[i - 1].fonte || '' : ''}
               aoMudar={(v) => mudaItem(i, 'fonte', v)}
               aoAplicarEmTodos={
@@ -341,6 +355,24 @@ export default function QuestaoForm({
         <Botao className="mt-3 w-full border-dashed" onClick={() => setS((x) => ({ ...x, itens: [...x.itens, itemVazio('CE')] }))}>
           <Plus className="size-4" /> Adicionar item
         </Botao>
+      )}
+
+      {pastasPara !== null && (
+        <PastasFontes
+          evento={evento}
+          eventos={todosEventos}
+          questoes={todasQuestoes}
+          aoFechar={() => setPastasPara(null)}
+          aoEscolher={(f) => {
+            const atual = s.itens[pastasPara]?.fonte || '';
+            const linhas = atual.split('\n');
+            const ultima = linhas[linhas.length - 1].trim();
+            // Se a última linha é só um termo de busca, troca por ela; senão, acrescenta.
+            const novo = !ultima || ultima.length < 15 ? [...linhas.slice(0, -1), f].join('\n') : `${atual}\n${f}`;
+            mudaItem(pastasPara, 'fonte', novo);
+            setPastasPara(null);
+          }}
+        />
       )}
 
       {seletorTopico !== null && (
@@ -370,12 +402,14 @@ export default function QuestaoForm({
 function CampoFonte({
   valor,
   fontes,
+  aoAbrirPastas,
   anterior,
   aoMudar,
   aoAplicarEmTodos,
 }: {
   valor: string;
   fontes: string[];
+  aoAbrirPastas: () => void;
   anterior: string;
   aoMudar: (v: string) => void;
   aoAplicarEmTodos?: () => void;
@@ -409,12 +443,15 @@ function CampoFonte({
             Usar em todos os itens
           </button>
         )}
+        <button type="button" onClick={aoAbrirPastas} className="inline-flex items-center gap-1 text-[11px] font-medium text-sky-700 hover:underline">
+          <FolderOpen className="size-3" /> De outro evento
+        </button>
       </div>
       <div className="relative">
         <TextoAuto
           value={valor}
           minLinhas={1}
-          placeholder="Fonte — digite para buscar nas já usadas ou cadastre uma nova (Enter para mais de uma)"
+          placeholder="Fonte — digite para buscar nas deste evento ou cadastre uma nova (Enter para mais de uma)"
           className="text-xs"
           onFocus={() => setAberto(true)}
           onBlur={() => setTimeout(() => setAberto(false), 150)}

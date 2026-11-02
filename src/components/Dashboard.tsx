@@ -6,7 +6,7 @@ import { LISTA_STATUS, STATUS_FINAL } from '../lib/types';
 import { mudarStatus } from '../lib/data';
 import { COR_PRAZO, COR_STATUS, calcularProgresso, dataBR, moeda, prazoEvento, recebimento, semAcento, totalEvento } from '../lib/util';
 import Pagamento from './Pagamento';
-import { Botao, cx, msgErro, useAvisos } from './ui';
+import { Botao, Valor, cx, msgErro, useAvisos } from './ui';
 
 export function SeletorStatus({ evento }: { evento: Evento }) {
   const { avisar } = useAvisos();
@@ -76,7 +76,7 @@ export function SeloPrazo({ evento }: { evento: Evento }) {
 export function SeloPagamento({ evento, aoClicar }: { evento: Evento; aoClicar?: () => void }) {
   const r = recebimento(evento);
   const conteudo = r?.registrado ? (
-    <>Recebido {moeda(r.valor)} em {dataBR(r.data)}</>
+    <>Recebido <Valor>{moeda(r.valor)}</Valor> em {dataBR(r.data)}</>
   ) : evento.status === 'Esperando pagamento' || (evento.status === STATUS_FINAL && !r?.registrado) ? (
     <>Registrar pagamento</>
   ) : null;
@@ -136,7 +136,7 @@ function CartaoEvento({ e, questoes, abrir, editar }: { e: Evento; questoes: Que
       <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-500">
         <span className="inline-flex items-center gap-1"><CalendarDays className="size-3.5" />{dataBR(e.data)}</span>
         <span>Meta {e.meta || 0}</span>
-        <span className="font-semibold text-emerald-700">{moeda(totalEvento(e))}</span>
+        <Valor className="font-semibold text-emerald-700">{moeda(totalEvento(e))}</Valor>
       </div>
 
       <div className="mt-3 flex items-center gap-3">
@@ -241,7 +241,7 @@ export default function Dashboard({
         ].map((k) => (
           <div key={k.r} className="rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-slate-200/70">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{k.r}</div>
-            <div className="mt-0.5 text-lg font-bold tabular-nums text-slate-900">{k.v}</div>
+            <div className="mt-0.5 text-lg font-bold tabular-nums text-slate-900"><Valor>{k.v}</Valor></div>
             <div className="text-[11px] text-slate-400">{k.d}</div>
           </div>
         ))}
