@@ -10,7 +10,7 @@ import { rotuloFonte } from './fonte';
  *   linha 2  → enunciado (célula larga)
  *   linhas 4–8 → 1ª célula: "G" vira "X" no gabarito; 2ª célula (cinza): letras A–E automáticas;
  *               3ª célula: texto das opções
- *   linhas 10–14 → 2ª célula: item do conteúdo programático; 3ª célula: justificativa (e fonte)
+ *   linhas 10–14 → 2ª célula: item do edital, exatamente como cadastrado; 3ª célula: justificativa (e fonte)
  *   A primeira tabela vira molde e é repetida quantas vezes for preciso. As letras A–E da coluna Q
  *   são uma lista do Word: cada questão ganha a sua lista, que recomeça em A.
  *
@@ -69,13 +69,6 @@ function tirarFiguras(body: Element) {
   filhos(body, 'p')
     .filter((p) => p.getElementsByTagNameNS(W, 'drawing').length || p.getElementsByTagNameNS(W, 'pict').length)
     .forEach((p) => body.removeChild(p));
-}
-
-/** "4.3 Controle florestal: manejo de…" → "4.3 Controle florestal" (número e título do tópico do edital). */
-function itemProgramatico(edital: string) {
-  const e = (edital || '').trim();
-  const m = /^(\d+(?:\.\d+)*\.?\s+[^:;]{1,120}?)\s*[:;]/.exec(e);
-  return m ? m[1].trim() : e;
 }
 
 function justificativa(it: Item) {
@@ -161,7 +154,7 @@ function preencherQuestaoME(doc: Document, tbl: Element, q: Questao, n: number, 
     escrever(doc, opcao[0], letra === gab ? 'X' : 'G');
     escrever(doc, opcao[2], it?.texto || '');
     const just = celulas(linhas[10 + i]);
-    escrever(doc, just[1], itemProgramatico(it?.edital || ''));
+    escrever(doc, just[1], it?.edital || '');
     escrever(doc, just[2], it ? justificativa(it) : '');
   });
 }
@@ -256,7 +249,7 @@ export async function preencherFormularioCE(e: Evento, questoes: Questao[], mode
       escrever(doc, c[0], it.dif || '');
       escrever(doc, c[1], gabaritoCE(it.gab));
       escrever(doc, c[3], it.texto || '');
-      escrever(doc, c[5], itemProgramatico(it.edital || ''));
+      escrever(doc, c[5], it.edital || '');
       escrever(doc, c[6], justificativa(it));
       tbl.appendChild(tr);
     }

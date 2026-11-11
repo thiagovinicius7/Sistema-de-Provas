@@ -67,10 +67,10 @@ O plano gratuito do Firebase não faz backup automático. Use
 - **Formulário da banca**: Gerar prova → Formulário da banca baixa o formulário oficial já preenchido,
   conforme o tipo do evento:
   - ME: `public/formulario-me.docx` (múltipla escolha, 5 opções) — evento/cargo, quantidade, nível,
-    enunciado, opções A–E (letras da coluna Q recomeçam em A a cada questão), X no gabarito, tópico do
-    edital e justificativa com a fonte.
+    enunciado, opções A–E (letras da coluna Q recomeçam em A a cada questão), X no gabarito, item do
+    edital (texto completo, como cadastrado) e justificativa com a fonte.
   - CE: `public/formulario-ce.docx` (itens certo/errado) — cargo, quantidade de itens, comando de cada
-    questão e, por item, dificuldade, gabarito C/E, texto, tópico do edital e justificativa com a fonte.
+    questão e, por item, dificuldade, gabarito C/E, texto, item do edital (texto completo) e justificativa com a fonte.
   A figura de exemplo do modelo é retirada e as células cinza da banca não são alteradas.
   Se a banca trocar um modelo, substitua o arquivo correspondente.
 
