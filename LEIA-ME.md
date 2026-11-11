@@ -64,6 +64,11 @@ O plano gratuito do Firebase não faz backup automático. Use
 
 ## Regras automáticas
 
+- **Formulário da banca** (só eventos ME): Gerar prova → Formulário da banca baixa o
+  `FORMULARIO_MULTIPLA_ESCOLHA` (modelo em `public/formulario-me.docx`) já preenchido: evento/cargo,
+  quantidade, nível, enunciado, opções A–E, X no gabarito, tópico do edital e justificativa com a fonte.
+  As células cinza da banca não são alteradas. Se a banca trocar o modelo, substitua esse arquivo.
+
 - **Prazo**: conta os dias até a data do evento enquanto o status for "Evento não iniciado" ou
   "Em elaboração".
 - **Recebido no ano**: usa o valor e a data do pagamento registrado. Eventos finalizados antes do

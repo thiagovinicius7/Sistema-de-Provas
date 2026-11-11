@@ -6,6 +6,7 @@ import type { Evento, Questao } from '../lib/types';
 import { salvarPlanejamento } from '../lib/data';
 import { ESCOPO_DRIVE, auth, obterTokenGoogle } from '../lib/firebase';
 import { criarNoGoogleDocs, criarWord, nomeDaProva } from '../lib/prova';
+import { criarFormularioME } from '../lib/formulario';
 import { baixarArquivo } from '../lib/importar';
 import { calcularProgresso, dataBR, moeda, ordenarQuestoes, totalEvento } from '../lib/util';
 import { BotaoLink, SeletorStatus, SeloPagamento, SeloPrazo } from './Dashboard';
@@ -109,7 +110,7 @@ export default function EventoTela({
 }) {
   const { avisar } = useAvisos();
   const [painel, setPainel] = useState<Painel>(null);
-  const [gerando, setGerando] = useState<'' | 'docs' | 'word'>('');
+  const [gerando, setGerando] = useState<'' | 'docs' | 'word' | 'formulario'>('');
   const [menuProva, setMenuProva] = useState(false);
   const [linkDoc, setLinkDoc] = useState('');
   const [pagamento, setPagamento] = useState(false);
@@ -160,6 +161,21 @@ export default function EventoTela({
       const blob = await criarWord(evento, lista);
       baixarArquivo(nomeDaProva(evento).replace(/[\\/:*?"<>|]/g, '-') + '.docx', blob);
       avisar('Arquivo Word baixado.');
+    } catch (e) {
+      avisar(msgErro(e), 'erro');
+    } finally {
+      setGerando('');
+    }
+  }
+
+  async function gerarFormulario() {
+    setMenuProva(false);
+    if (!lista.length) return avisar('Não há questões para gerar o formulário.', 'erro');
+    setGerando('formulario');
+    try {
+      const blob = await criarFormularioME(evento, lista);
+      baixarArquivo(('FORMULARIO - ' + nomeDaProva(evento)).replace(/[\\/:*?"<>|]/g, '-') + '.docx', blob);
+      avisar('Formulário da banca baixado.');
     } catch (e) {
       avisar(msgErro(e), 'erro');
     } finally {
@@ -295,6 +311,15 @@ export default function EventoTela({
                           <span className="block text-xs text-slate-500">Baixa o arquivo no aparelho</span>
                         </span>
                       </button>
+                      {evento.tipo === 'ME' && (
+                        <button onClick={gerarFormulario} className="flex w-full items-start gap-2.5 border-t border-slate-100 px-3 py-2.5 text-left hover:bg-slate-50">
+                          <FileDown className="mt-0.5 size-4 text-emerald-600" />
+                          <span>
+                            <span className="block text-sm font-semibold text-slate-800">Formulário da banca (.docx)</span>
+                            <span className="block text-xs text-slate-500">Múltipla escolha, 5 opções, já preenchido</span>
+                          </span>
+                        </button>
+                      )}
                     </div>
                   </>
                 )}
